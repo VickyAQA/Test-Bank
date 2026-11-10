@@ -15,17 +15,15 @@ class TestAccountDeposit:
             self,
             api_manager: ApiManager,
             create_user_request: CreateUserRequest,
-            created_account: CreateAccountResponse,
+            deposited_account,
             db_session: Session
     ):
-        deposit_amount = 1000.5
-        deposit_request = CreateDepositRequest(accountId=created_account.id, amount=deposit_amount)
-        api_manager.user_steps.deposit(create_user_request, deposit_request)
+        account, deposit_amount = deposited_account
 
-        db_account = AccountCrudDb.get_account_by_id(db_session, created_account.id)
+        db_account = AccountCrudDb.get_account_by_id(db_session, account.id)
         assert db_account.balance == deposit_amount, "Баланс в БД не совпадает!"
 
-        db_transactions = TransactionCrudDb.get_transactions_by_account_id(db_session, created_account.id)
+        db_transactions = TransactionCrudDb.get_transactions_by_account_id(db_session, account.id)
         deposit_tx = next((t for t in db_transactions if t.transaction_type == "deposit"), None)
 
         assert deposit_tx is not None, "Транзакция не найдена в БД!"
@@ -43,7 +41,8 @@ class TestAccountDeposit:
         deposit_request = CreateDepositRequest(accountId=created_account.id, amount=invalid_amount)
         response = api_manager.user_steps.deposit_invalid(create_user_request, deposit_request)
 
-        assert "Amount must be between" in response.json().get("error", "")
+        error_text = response.json().get("error", "")
+        assert "Amount must be between" in response.json().get("error", ""), f"Неожиданная ошибка: {error_text}"
 
         db_account = AccountCrudDb.get_account_by_id(db_session, created_account.id)
         assert db_account.balance == created_account.balance, "Ошибка: баланс изменился после невалидного депозита!"
@@ -58,8 +57,10 @@ class TestAccountDeposit:
         deposit_request = CreateDepositRequest.model_construct(accountId=created_account.id)
         response = api_manager.user_steps.deposit_invalid(create_user_request, deposit_request)
 
-        assert "Amount is required" in response.json().get("error", "")
+        error_text = response.json().get("error", "")
+        assert "Amount is required" in response.json().get("error", ""), f"Неожиданная ошибка: {error_text}"
 
         db_account = AccountCrudDb.get_account_by_id(db_session, created_account.id)
         assert db_account.balance == created_account.balance, "Ошибка: баланс изменился после депозита без amount!"
+
 

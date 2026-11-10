@@ -6,6 +6,7 @@ from src.main.api.db.crud.credit_crud import CreditCrudDb
 from src.main.api.models.create_account_response import CreateAccountResponse
 from src.main.api.models.create_credit_request import CreateCreditRequest
 from src.main.api.models.create_user_request import CreateUserRequest
+from src.main.api.generators.model_generator import RandomModelGenerator
 
 
 @pytest.mark.api
@@ -17,8 +18,8 @@ class TestCredit:
             credit_account: CreateAccountResponse,
             db_session: Session
     ):
-        credit_amount = 5000
-        credit_term = 11
+        credit_amount = RandomModelGenerator.generate_credit_amount()
+        credit_term = RandomModelGenerator.generate_credit_term()
 
         create_credit_request = CreateCreditRequest(
             accountId=credit_account.id, amount=credit_amount, termMonths=credit_term
@@ -56,3 +57,4 @@ class TestCredit:
 
         db_credits = CreditCrudDb.get_credits_by_account_id(db_session, credit_account.id)
         assert len(db_credits) == 0, "Ошибка: невалидный кредит записался в БД!"
+

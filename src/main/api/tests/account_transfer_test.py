@@ -1,13 +1,11 @@
-from typing import Tuple
-
 import pytest
 from sqlalchemy.orm import Session
 
 from src.main.api.classes.api_manager import ApiManager
 from src.main.api.db.crud.account_crud import AccountCrudDb
-from src.main.api.models.create_account_response import CreateAccountResponse
 from src.main.api.models.create_user_request import CreateUserRequest
 from src.main.api.models.transfer_request import TransferRequest
+from src.main.api.generators.model_generator import RandomModelGenerator
 
 
 @pytest.mark.api
@@ -16,39 +14,43 @@ class TestAccountTransfer:
             self,
             api_manager: ApiManager,
             create_user_request: CreateUserRequest,
-            funded_account: Tuple[CreateAccountResponse, float],
+            two_accounts,
             db_session: Session
     ):
-        account1, deposit_amount = funded_account
-        account2 = api_manager.user_steps.create_account(create_user_request)
+        account1, account2, deposit_amount, transfer_amount = two_accounts
 
-        transfer_amount = 500
         transfer_request = TransferRequest(fromAccountId=account1.id, toAccountId=account2.id, amount=transfer_amount)
         api_manager.user_steps.transfer(create_user_request, transfer_request)
 
-        assert AccountCrudDb.get_account_by_id(db_session, account1.id).balance == deposit_amount - transfer_amount
-        assert AccountCrudDb.get_account_by_id(db_session, account2.id).balance == transfer_amount
+        db_account1 = AccountCrudDb.get_account_by_id(db_session, account1.id)
+        db_account2 = AccountCrudDb.get_account_by_id(db_session, account2.id)
+
+        assert db_account1.balance == pytest.approx(deposit_amount - transfer_amount), \
+            "Баланс отправителя в БД неверный!"
+
+        assert db_account2.balance == pytest.approx(transfer_amount), "Баланс получателя в БД неверный!"
 
     def test_transfer_to_nonexistent_account(
             self,
             api_manager: ApiManager,
             create_user_request: CreateUserRequest,
-            funded_account: Tuple[CreateAccountResponse, float],
+            two_accounts,
             db_session: Session
     ):
-        account1, deposit_amount = funded_account
+        account1, _, deposit_amount, transfer_amount = two_accounts
 
-        transfer_amount = 500
+        invalid_account_id = RandomModelGenerator.generate_invalid_id()
+
         transfer_request = TransferRequest(
             fromAccountId=account1.id,
-            toAccountId=999999,
+            toAccountId=invalid_account_id,
             amount=transfer_amount
         )
 
         response = api_manager.user_steps.transfer_invalid(create_user_request, transfer_request)
 
         error_text = response.json().get("error", "")
-        assert "999999" in error_text, f"Неожиданная ошибка от сервера: {error_text}"
+        assert str(invalid_account_id) in error_text, f"Неожиданная ошибка от сервера: {error_text}"
 
         db_account1 = AccountCrudDb.get_account_by_id(db_session, account1.id)
         assert db_account1.balance == deposit_amount, "Ошибка: деньги списались, хотя перевод не прошел!"
@@ -58,13 +60,11 @@ class TestAccountTransfer:
             self,
             api_manager: ApiManager,
             create_user_request: CreateUserRequest,
-            funded_account: Tuple[CreateAccountResponse, float],
+            two_accounts,
             invalid_amount: int,
             db_session: Session
     ):
-        account1, deposit_amount = funded_account
-
-        account2 = api_manager.user_steps.create_account(create_user_request)
+        account1, account2, deposit_amount, _ = two_accounts
 
         transfer_request = TransferRequest(fromAccountId=account1.id, toAccountId=account2.id, amount=invalid_amount)
 

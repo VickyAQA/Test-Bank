@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from src.main.api.classes.api_manager import ApiManager
 from src.main.api.models.create_user_request import CreateUserRequest
-from src.main.api.db.crud.user_crud import UserCrudDb as User
+from src.main.api.db.crud.user_crud import UserCrudDb
 
 
 @pytest.mark.api
@@ -14,12 +14,11 @@ class TestCreateUser:
             db_session: Session,
             create_user_request: CreateUserRequest,
     ):
-        response = User.get_user_by_username(db_session, create_user_request.username)
+        user_from_db = UserCrudDb.get_user_by_username(db_session, create_user_request.username)
 
-        assert create_user_request.username == response.username
-        assert create_user_request.role == response.role
-        assert response.username == create_user_request.username, "Созданного пользователя нет в БД"
-
+        assert user_from_db is not None, "Созданного пользователя нет в БД!"
+        assert user_from_db.username == create_user_request.username, "Имя пользователя в БД не совпадает!"
+        assert user_from_db.role == create_user_request.role, "Роль пользователя в БД не совпадает!"
 
     @pytest.mark.parametrize(
         "username, password",
@@ -41,7 +40,8 @@ class TestCreateUser:
         create_user_request = CreateUserRequest(username=username, password=password, role="ROLE_USER")
         api_manager.admin_steps.create_user_invalid(create_user_request)
 
-        user_from_db = User.get_user_by_username(db_session, create_user_request.username)
-        assert user_from_db is None, "Пользователь создан, ошибка"
+        user_from_db = UserCrudDb.get_user_by_username(db_session, create_user_request.username)
+        assert user_from_db is None, "Ошибка: невалидный пользователь записался в БД!"
+
 
 
