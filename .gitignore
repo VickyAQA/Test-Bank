@@ -1,0 +1,22 @@
+# Виртуальные окружения Python
+.venv/
+venv/
+
+# Настройки IDE (PyCharm, WebStorm и т.д.)
+.idea/
+
+# Кэш Python
+__pycache__/
+
+# Кэш тестов
+.pytest_cache/
+
+# Файлы с секретными переменными окружения
+.env
+
+# Зависимости Node.js (если используется)
+node_modules/
+
+# Результаты и отчеты Allure
+allure-results/
+allure-report/
